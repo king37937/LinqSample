@@ -4,7 +4,7 @@ using LinqTests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
 using System.Linq;
-using TiIEnumerableExterision;
+using TiIEnumerableExtension;
 
 namespace LinqTests
 {
@@ -84,14 +84,13 @@ internal class WithoutLinq
     }
 }
 
-namespace TiIEnumerableExterision
+namespace TiIEnumerableExtension
 {
-
     internal static class YourOwnLinq
     {
-        public static IEnumerable<TSource> MyOwnWhere<TSource>(this IEnumerable<TSource> collection, Func<TSource, bool> predicate)
+        public static IEnumerable<TSource> MyOwnWhere<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
         {
-            var enumerator = collection.GetEnumerator();
+            var enumerator = source.GetEnumerator();
             while (enumerator.MoveNext())
             {
                 var item = enumerator.Current;
@@ -104,7 +103,7 @@ namespace TiIEnumerableExterision
 
         private static IEnumerable<T> MyOwnForeach(IEnumerable<T> products, Func<T, bool> predicate)
         {
-            //foreach (var p in collection)
+            //foreach (var p in source)
             //{
             //    if (predicate(p))
             //    {
