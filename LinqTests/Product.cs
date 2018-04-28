@@ -1,6 +1,6 @@
 ﻿namespace LinqTests
 {
-    internal class T
+    internal class Product
     {
         public int Id { get; set; }
         public int Price { get; set; }

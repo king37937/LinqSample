@@ -3,9 +3,12 @@ using ExpectedObjects;
 using LinqTests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Microsoft.Build.Tasks.Deployment.Bootstrapper;
+using NSubstitute.Routing.Handlers;
 using TiIEnumerableExtension;
+using Product = LinqTests.Product;
 
 namespace LinqTests
 {
@@ -18,10 +21,10 @@ namespace LinqTests
             var products = RepositoryFactory.GetProducts();
             var actual = WithoutLinq.FindProductByPrice(products, 200, 500, "Odd-e");
 
-            var expected = new List<T>()
+            var expected = new List<Product>()
             {
-                new T{Id=3, Cost=31, Price=310, Supplier="Odd-e" },
-                new T{Id=4, Cost=41, Price=410, Supplier="Odd-e" },
+                new Product{Id=3, Cost=31, Price=310, Supplier="Odd-e" },
+                new Product{Id=4, Cost=41, Price=410, Supplier="Odd-e" },
             };
 
             expected.ToExpectedObject().ShouldEqual(actual);
@@ -34,10 +37,10 @@ namespace LinqTests
             var actual = products.MyOwnWhere(p => p.Price >= 200 && p.Price <= 500 && p.Supplier == "Odd-e");
 
            
-            var expected = new List<T>()
+            var expected = new List<Product>()
             {
-                new T{Id=3, Cost=31, Price=310, Supplier="Odd-e" },
-                new T{Id=4, Cost=41, Price=410, Supplier="Odd-e" },
+                new Product{Id=3, Cost=31, Price=310, Supplier="Odd-e" },
+                new Product{Id=4, Cost=41, Price=410, Supplier="Odd-e" },
             };
 
             expected.ToExpectedObject().ShouldEqual(actual.ToList());
@@ -130,24 +133,94 @@ namespace LinqTests
             var products = RepositoryFactory.GetProducts();
             var actual = products.MyTake(3);
 
-            var expected = new List<T>()
+            var expected = new List<Product>()
             {
-                new T{Id=1, Cost=11, Price=110, Supplier="Odd-e" },
-                new T{Id=2, Cost=21, Price=210, Supplier="Yahoo" },
-                new T{Id=3, Cost=31, Price=310, Supplier="Odd-e" },
+                new Product{Id=1, Cost=11, Price=110, Supplier="Odd-e" },
+                new Product{Id=2, Cost=21, Price=210, Supplier="Yahoo" },
+                new Product{Id=3, Cost=31, Price=310, Supplier="Odd-e" },
             };
 
             expected.ToExpectedObject().ShouldEqual(actual.ToList());
+        }
+
+        [Ignore]
+        [TestMethod]
+        public void Select_with_index()
+        {
+            var employees = RepositoryFactory.GetEmployees();
+            var actual = employees.MyTake(3).MySelect( (e, index) => $"{index+1}-{e.Name}" );
+
+            var expected = new List<string>()
+            {
+                "1-Jeo",
+                "2-Tom",
+                "3-Kevin"
+            };
+            expected.ToExpectedObject().ShouldEqual(actual.ToList());
+        }
+
+        [TestMethod]
+        public void MySkipTest()
+        {
+            var employees = RepositoryFactory.GetEmployees();
+            var actual = employees.MySkip(6);
+
+            var expected = new List<Employee>()
+            {
+                new Employee{Name="Frank", Role=RoleType.Engineer, MonthSalary=120, Age=16, WorkingYear=2.6} ,
+                new Employee{Name="Joey", Role=RoleType.Engineer, MonthSalary=250, Age=40, WorkingYear=2.6},
+            };
+            expected.ToExpectedObject().ShouldEqual(actual.ToList());
+        }
+
+        [TestMethod]
+        public void MySkipWhileTest()
+        {
+            var products = RepositoryFactory.GetProducts();
+            var actual = products.MySkipWhile( p=>p.Price > 300, 4);
+
+            var expected = new List<Product>()
+            {
+                new Product{Id=1, Cost=11, Price=110, Supplier="Odd-e" },
+                new Product{Id=2, Cost=21, Price=210, Supplier="Yahoo" },
+                new Product{Id=7, Cost=71, Price=710, Supplier="Yahoo" },
+                new Product{Id=8, Cost=18, Price=780, Supplier="Yahoo" },
+            };
+            expected.ToExpectedObject().ShouldEqual(actual.ToList());
+        }
+
+        [TestMethod]
+        public void MyTakeWhileTest()
+        {
+            var employees = RepositoryFactory.GetEmployees();
+            var actual = employees.MyTakeWhile(e => e.Age > 30);
+
+            var expected = new List<Employee>()
+            {
+                new Employee{Name="Joe", Role=RoleType.Engineer, MonthSalary=100, Age=44, WorkingYear=2.6 } ,
+                new Employee{Name="Tom", Role=RoleType.Engineer, MonthSalary=140, Age=33, WorkingYear=2.6} ,
+                new Employee{Name="Kevin", Role=RoleType.Manager, MonthSalary=380, Age=55, WorkingYear=2.6} ,
+            };
+            expected.ToExpectedObject().ShouldEqual(actual.ToList());
+        }
+
+        public void MySumTest()
+        {
+            var products = RepositoryFactory.GetProducts();
+            var actual = products.MySum(p => p.Price);
+
+            var expected = 3650;
+            Assert.AreEqual(expected, actual);
         }
     }
 }
 
 internal class WithoutLinq
 {
-    public static List<T> FindProductByPrice(IEnumerable<T> products, int lowBoundary, int highBoundary,
+    public static List<Product> FindProductByPrice(IEnumerable<Product> products, int lowBoundary, int highBoundary,
         string supplier)
     {
-        var matchedProducts = new List<T>();
+        var matchedProducts = new List<Product>();
         foreach (var product in products)
         {
             if (product.Price >= lowBoundary && product.Price <= highBoundary && product.Supplier.Equals(supplier))
@@ -177,7 +250,7 @@ namespace TiIEnumerableExtension
             }
         }
 
-        private static IEnumerable<T> MyOwnForeach(IEnumerable<T> products, Func<T, bool> predicate)
+        private static IEnumerable<Product> MyOwnForeach(IEnumerable<Product> products, Func<Product, bool> predicate)
         {
             //foreach (var p in source)
             //{
@@ -199,11 +272,21 @@ namespace TiIEnumerableExtension
             }
         }
 
-        public static IEnumerable<TResult> MySelect<TSouce, TResult>(this IEnumerable<TSouce> urls, Func<TSouce, TResult> selector)
+        public static IEnumerable<TResult> MySelect<TSouce, TResult>(this IEnumerable<TSouce> source, Func<TSouce, TResult> selector)
         {
-            foreach (var url in urls)
+            foreach (var item in source)
             {
-                yield return selector(url);
+                yield return selector(item);
+            }
+        }
+
+        public static IEnumerable<TResult> MySelect<TSouce, TResult>(this IEnumerable<TSouce> source, Func<TSouce, int, TResult> selector)
+        {
+            var index = 0;
+            foreach (var item in source)
+            {
+                yield return selector(item, index);
+                index++;
             }
         }
 
@@ -224,6 +307,72 @@ namespace TiIEnumerableExtension
                 yield return enumerator.Current;
                 top--;
             }
+        }
+
+        public static IEnumerable<TSource> MySkip<TSource>(this IEnumerable<TSource> source, int count)
+        {
+            var index = 0;
+            var enumerator = source.GetEnumerator();
+            
+            while (enumerator.MoveNext())
+            {
+                if (index >= count)
+                {
+                    yield return enumerator.Current;
+                }
+
+                index++;
+            }
+        }
+
+        public static IEnumerable<TSouce> MySkipWhile<TSouce>(this IEnumerable<TSouce> source, Func<TSouce, bool> predicate, int count)
+        {
+            var enumerator = source.GetEnumerator();
+            var counter = 0;
+            while (enumerator.MoveNext())
+            {
+                var item = enumerator.Current;
+                if (!predicate(item))
+                {
+                    yield return item;
+                }
+                else
+                {
+                    if (counter >= count)
+                    {
+                        yield return item;
+                    }
+                    counter++;
+                }
+            }
+        }
+
+        public static IEnumerable<TSource> MyTakeWhile<TSource>(this IEnumerable<TSource> source,
+            Func<TSource, bool> predicate)
+        {
+            var enumerator = source.GetEnumerator();
+            while (enumerator.MoveNext())
+            {
+                if (predicate(enumerator.Current))
+                {
+                    yield return enumerator.Current;
+                }
+                else
+                {
+                    yield break;
+                }
+            }
+        }
+
+        public static int MySum<TSource>(this IEnumerable<TSource> sources, Func<TSource, int> selector)
+        {
+            var sum = 0;
+            foreach (var item in sources)
+            {
+                sum += selector(item);
+            }
+
+            return sum;
         }
     }
 }
