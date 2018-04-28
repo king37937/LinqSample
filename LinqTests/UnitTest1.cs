@@ -4,6 +4,7 @@ using LinqTests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
 using System.Linq;
+using TiIEnumerableExterision;
 
 namespace LinqTests
 {
@@ -29,9 +30,7 @@ namespace LinqTests
         public void MyOwnLINQ_find_products_that_price_between_200_and_500_supplier_odds()
         {
             var products = RepositoryFactory.GetProducts();
-            var actual = YourOwnLinq.MyOwnWhere(
-                products, 
-                p => p.Price >= 200 && p.Price <= 500 && p.Supplier == "Odd-e");
+            var actual = products.MyOwnWhere(p => p.Price >= 200 && p.Price <= 500 && p.Supplier == "Odd-e");
 
             foreach (var item in actual)
             {
@@ -64,8 +63,6 @@ namespace LinqTests
 
             expected.ToExpectedObject().ShouldEqual(actual);
         }
-
-
     }
 }
 
@@ -87,39 +84,43 @@ internal class WithoutLinq
     }
 }
 
-internal class YourOwnLinq
+namespace TiIEnumerableExterision
 {
-    public static IEnumerable<TSource> MyOwnWhere<TSource>(IEnumerable<TSource> collection, Func<TSource, bool> predicate)
+
+    internal static class YourOwnLinq
     {
-        var enumerator = collection.GetEnumerator();
-        while (enumerator.MoveNext())
+        public static IEnumerable<TSource> MyOwnWhere<TSource>(this IEnumerable<TSource> collection, Func<TSource, bool> predicate)
         {
-            var item = enumerator.Current;
-            if (predicate(item))
+            var enumerator = collection.GetEnumerator();
+            while (enumerator.MoveNext())
             {
-                yield return item;
+                var item = enumerator.Current;
+                if (predicate(item))
+                {
+                    yield return item;
+                }
             }
         }
-    }
 
-    private static IEnumerable<T> MyOwnForeach(IEnumerable<T> products, Func<T, bool> predicate)
-    {
-        //foreach (var p in collection)
-        //{
-        //    if (predicate(p))
-        //    {
-        //        //yield會延遲執行，只有真正要用時才實際執行
-        //        yield return p;
-        //    }
-        //}
-
-        var enumerator = products.GetEnumerator();
-        while (enumerator.MoveNext())
+        private static IEnumerable<T> MyOwnForeach(IEnumerable<T> products, Func<T, bool> predicate)
         {
-            var item = enumerator.Current;
-            if (predicate(item))
+            //foreach (var p in collection)
+            //{
+            //    if (predicate(p))
+            //    {
+            //        //yield會延遲執行，只有真正要用時才實際執行
+            //        yield return p;
+            //    }
+            //}
+
+            var enumerator = products.GetEnumerator();
+            while (enumerator.MoveNext())
             {
-                yield return item;
+                var item = enumerator.Current;
+                if (predicate(item))
+                {
+                    yield return item;
+                }
             }
         }
     }
