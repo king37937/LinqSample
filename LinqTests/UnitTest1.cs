@@ -3,9 +3,7 @@ using ExpectedObjects;
 using LinqTests;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using Microsoft.Build.Tasks.Deployment.Bootstrapper;
 using NSubstitute.Routing.Handlers;
 using TiIEnumerableExtension;
 using Product = LinqTests.Product;
@@ -34,9 +32,9 @@ namespace LinqTests
         public void MyOwnLINQ_find_products_that_price_between_200_and_500_supplier_odds()
         {
             var products = RepositoryFactory.GetProducts();
-            var actual = products.MyOwnWhere(p => p.Price >= 200 && p.Price <= 500 && p.Supplier == "Odd-e");
+            var actual = products.MyWhere(p => p.Price >= 200 && p.Price <= 500 && p.Supplier == "Odd-e");
 
-           
+
             var expected = new List<Product>()
             {
                 new Product{Id=3, Cost=31, Price=310, Supplier="Odd-e" },
@@ -50,7 +48,7 @@ namespace LinqTests
         public void MyOwnLINQ_Where_GetEmployee()
         {
             var employees = RepositoryFactory.GetEmployees();
-            var actual = employees.MyOwnWhere(e => e.Age >= 25 && e.Age <= 40).ToList();
+            var actual = employees.MyWhere(e => e.Age >= 25 && e.Age <= 40).ToList();
 
             var expected = new List<Employee>()
             {
@@ -83,7 +81,7 @@ namespace LinqTests
         public void UrlLengthTest()
         {
             var urls = RepositoryFactory.GetUrls();
-            var actual = urls.MySelect(url=>url.Length);
+            var actual = urls.MySelect(url => url.Length);
 
             var expected = new List<int>()
             {
@@ -112,7 +110,7 @@ namespace LinqTests
         public void FindEmployeeTest()
         {
             var employees = RepositoryFactory.GetEmployees();
-            var actual = employees.MyOwnWhere(e => e.Role == RoleType.Engineer).
+            var actual = employees.MyWhere(e => e.Role == RoleType.Engineer).
                 MySelect(e => e.MonthSalary);
 
             foreach (var item in actual)
@@ -148,7 +146,7 @@ namespace LinqTests
         public void Select_with_index()
         {
             var employees = RepositoryFactory.GetEmployees();
-            var actual = employees.MyTake(3).MySelect( (e, index) => $"{index+1}-{e.Name}" );
+            var actual = employees.MyTake(3).MySelect((e, index) => $"{index + 1}-{e.Name}");
 
             var expected = new List<string>()
             {
@@ -177,7 +175,7 @@ namespace LinqTests
         public void MySkipWhileTest()
         {
             var products = RepositoryFactory.GetProducts();
-            var actual = products.MySkipWhile( p=>p.Price > 300, 4);
+            var actual = products.MySkipWhile(p => p.Price > 300, 4);
 
             var expected = new List<Product>()
             {
@@ -212,6 +210,64 @@ namespace LinqTests
             var expected = 3650;
             Assert.AreEqual(expected, actual);
         }
+
+        [TestMethod]
+        public void MySum_group3_Test()
+        {
+            var products = RepositoryFactory.GetProducts();
+            var actual = products.MySum(p => p.Price, 3);
+            var expected = new List<int>()
+            {
+                630, 1530, 1490
+            };
+
+            expected.ToExpectedObject().ShouldEqual(actual.ToList());
+        }
+
+        [TestMethod]
+        public void MySum_group5_Test()
+        {
+            var products = RepositoryFactory.GetProducts();
+            var actual = products.MySum(p => p.Price, 5);
+            var expected = new List<int>()
+            {
+                1550, 2100
+            };
+
+            expected.ToExpectedObject().ShouldEqual(actual.ToList());
+        }
+
+        [TestMethod]
+        public void MyAny_Test()
+        {
+            var products = RepositoryFactory.GetProducts();
+            var actual = products.MyAny();
+            Assert.IsTrue(actual);
+        }
+
+        [TestMethod]
+        public void MyAll_Test()
+        {
+            var products = RepositoryFactory.GetProducts();
+            var actual = products.MyAll( p => p.Price > 200);
+            Assert.IsFalse(actual);
+        }
+
+        [TestMethod]
+        public void MyDistinct_Test()
+        {
+            var enumerable = RepositoryFactory.GetEmployees();
+            var actual = enumerable.MySelect(p => p.Role).MyDistinct();
+
+            var expected = new List<RoleType>
+            {
+                RoleType.Engineer,
+                RoleType.Manager,
+                RoleType.OP
+            };
+            expected.ToExpectedObject().ShouldEqual(actual.ToList());
+
+        }
     }
 }
 
@@ -237,7 +293,7 @@ namespace TiIEnumerableExtension
 {
     internal static class YourOwnLinq
     {
-        public static IEnumerable<TSource> MyOwnWhere<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+        public static IEnumerable<TSource> MyWhere<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
         {
             var enumerator = source.GetEnumerator();
             while (enumerator.MoveNext())
@@ -313,7 +369,7 @@ namespace TiIEnumerableExtension
         {
             var index = 0;
             var enumerator = source.GetEnumerator();
-            
+
             while (enumerator.MoveNext())
             {
                 if (index >= count)
@@ -373,6 +429,76 @@ namespace TiIEnumerableExtension
             }
 
             return sum;
+        }
+
+        public static IEnumerable<int> MySum<TSource>(this IEnumerable<TSource> source,
+            Func<TSource, int> func, int groupCount)
+        {
+            var sum = 0;
+            var currentCount = 0;
+
+            foreach (var item in source)
+            {
+                sum += func(item);
+                currentCount++;
+                if (currentCount >= groupCount)
+                {
+                    yield return sum;
+                    sum = 0;
+                    currentCount = 0;
+                }
+            }
+
+            if (sum != 0 && currentCount < groupCount)
+            {
+                yield return sum;
+            }
+        }
+
+        public static IEnumerable<int> MyGroupSum<TSource>(this IEnumerable<TSource> source,
+            int pageSize, Func<TSource, int> selector)
+        {
+            var rowIndex = 0;
+            while (rowIndex <= source.Count())
+            {
+                yield return source.Skip(rowIndex).Take(pageSize).Sum(selector);
+                rowIndex += pageSize;
+            }
+        }
+
+        public static bool MyAny<TSource>(this IEnumerable<TSource> source)
+        {
+            var enumerator = source.GetEnumerator();
+            return enumerator.MoveNext();
+        }
+
+        public static bool MyAll<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> predicate)
+        {
+            var enumerator = source.GetEnumerator();
+           
+            while (enumerator.MoveNext())
+            {
+                if (!predicate(enumerator.Current))
+                {
+                    return false; 
+                }
+            }
+
+            return true;
+        }
+
+        public static IEnumerable<TSource> MyDistinct<TSource>(this IEnumerable<TSource> source)
+        {
+            var enumerator = source.GetEnumerator();
+            var exists = new HashSet<TSource>();
+            while (enumerator.MoveNext())
+            {
+                var canAdd = exists.Add(enumerator.Current);
+                if (canAdd)
+                {
+                    yield return enumerator.Current;
+                }
+            }
         }
     }
 }
